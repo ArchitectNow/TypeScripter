@@ -14,14 +14,14 @@ namespace TypeScripter.Readers
 		#region ITypeReader
 		public virtual IEnumerable<Type> GetTypes(Assembly assembly)
 		{
-			return assembly.GetExportedTypes()
+            return assembly.GetExportedTypes()
 				.Where(x => x.IsPublic)
 				.Where(x => !x.IsPointer);
 		}
 
 		public virtual IEnumerable<PropertyInfo> GetProperties(Type type)
 		{
-			return type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+			return type.GetProperties()
 				.Where(x => !x.PropertyType.IsPointer)
 				.Where(x => !x.IsSpecialName);
 		}

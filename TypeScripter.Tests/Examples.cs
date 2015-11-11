@@ -23,9 +23,16 @@ namespace TypeScripter.Examples
 			set;
 		}
 
-		public void Sleep(int hours)
+        public bool? IsActive { get; set; }
+
+		public bool? Sleep(bool IsActive = true)
 		{
+            return true;
 		}
+
+        public Animal Parent { get; set; }
+
+        public List<Animal> Children { get; set; }
 	}
 
 	public class Mammal : Animal
@@ -93,6 +100,7 @@ namespace TypeScripter.Examples
 		public void OutputTest()
 		{
 			var scripter = new Scripter();
+            scripter.IgnoreFunctions = true;
 			var output = scripter
 				.AddType(typeof(Animal))
 				.ToString();

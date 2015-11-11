@@ -31,7 +31,7 @@ namespace TypeScripter.TypeScript
 			: base(name)
 		{
 			this.Type = type;
-			this.Optional = false;
+			this.Optional = this.Type.IsNullable;
 		}
 		#endregion
 	}

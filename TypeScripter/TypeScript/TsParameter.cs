@@ -27,11 +27,11 @@ namespace TypeScripter.TypeScript
 		/// Constructor
 		/// </summary>
 		/// <param name="name">The parameter name</param>
-		public TsParameter(TsName name, TsType type)
+		public TsParameter(TsName name, TsType type, bool IsOptional = false)
 			: base(name)
 		{
 			this.Type = type;
-			this.Optional = false;
+			this.Optional = IsOptional;
 		}
 		#endregion
 	}

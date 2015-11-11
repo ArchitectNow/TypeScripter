@@ -35,8 +35,12 @@ namespace TypeScripter.TypeScript
 		public override string ToString()
 		{
 			var name = this.Name;
-			if (name != null)
-				return name.ToString();
+            if (name != null)
+            {
+
+                return name.ToString();
+     
+            }
 			return base.ToString();
 		}
 		#endregion

@@ -110,7 +110,7 @@ namespace TypeScripter.TypeScript
 			using (var sbc = new StringBuilderContext(this))
 			{
 				this.WriteIndent();
-				this.Write("declare module {0} {{", Format(module.Name));
+				this.Write("module {0} {{", Format(module.Name));
 				this.WriteNewline();
 				using (Indent())
 				{
@@ -148,6 +148,32 @@ namespace TypeScripter.TypeScript
 				this.Write("}");
 				this.WriteNewline();
 				this.WriteNewline();
+
+				this.WriteIndent();
+
+				this.Write("export class {0}{1} {2} {3} {{",
+				Format(tsInterface.Name).Substring(1),
+				Format(tsInterface.TypeParameters),
+				string.Format("implements {0}",tsInterface.Name.Name),
+				tsInterface.BaseInterfaces.Count > 0 ? string.Format("extends {0}", string.Join(", ", tsInterface.BaseInterfaces.Select(Format))) : string.Empty);
+				this.WriteNewline();
+				using (Indent())
+				{
+                    foreach (var property in tsInterface.Properties)
+                    {
+                        this.Write(this.Format(property).Replace("?",""));
+                    }
+
+                    foreach (var function in tsInterface.Functions)
+                    {
+                        this.Write(this.Format(function));
+                    }
+				}
+				this.WriteIndent();
+				this.Write("}");
+
+				this.WriteNewline();
+				this.WriteNewline();
 				return sbc.ToString();
 			}
 		}
@@ -157,7 +183,8 @@ namespace TypeScripter.TypeScript
 			using (var sbc = new StringBuilderContext(this))
 			{
 				this.WriteIndent();
-				this.Write("{0}: {1};", Format(property.Name), Format(property.Type));
+			 
+				this.Write("{0}{2}: {1};", Format(property.Name), Format(property.Type),property.Optional ? "?" : "");
 				this.WriteNewline();
 				return sbc.ToString();
 			}
@@ -172,23 +199,23 @@ namespace TypeScripter.TypeScript
 					Format(function.Name),
 					Format(function.TypeParameters),
 					Format(function.Parameters),
-                    function.ReturnType == TsPrimitive.Any ? string.Empty : string.Format(": {0}", FormatReturnType(function.ReturnType))
+					function.ReturnType == TsPrimitive.Any ? string.Empty : string.Format(": {0}", FormatReturnType(function.ReturnType))
 				);
 				this.WriteNewline();
 				return sbc.ToString();
 			}
 		}
 
-        public virtual string FormatReturnType(TsType tsReturnType)
-        {
-            return Format(tsReturnType);
-        }
+		public virtual string FormatReturnType(TsType tsReturnType)
+		{
+			return Format(tsReturnType);
+		}
 
 		public virtual string Format(TsType tsType)
 		{
 			if (tsType is TsGenericType)
 				return Format((TsGenericType)tsType);
-			return tsType.Name.FullName;
+			return tsType.ToString();
 		}
 
 		public virtual string Format(TsEnum tsEnum)

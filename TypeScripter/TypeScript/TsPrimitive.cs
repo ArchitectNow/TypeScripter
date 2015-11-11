@@ -25,7 +25,10 @@ namespace TypeScripter.TypeScript
 		}
 		#endregion
 
-		#region IO
-		#endregion
-	}
+
+
+        #region IO
+
+        #endregion
+    }
 }

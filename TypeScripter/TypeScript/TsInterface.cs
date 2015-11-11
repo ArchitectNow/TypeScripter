@@ -61,6 +61,8 @@ namespace TypeScripter.TypeScript
 			this.BaseInterfaces = new List<TsType>();
 			this.Properties = new List<TsProperty>();
 			this.Functions = new List<TsFunction>();
+
+            base.Name.Name = "I" + base.Name.Name;
 		}
 		#endregion
 	}

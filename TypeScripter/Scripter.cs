@@ -42,6 +42,8 @@ namespace TypeScripter
 			get;
 			set;
 		}
+
+        public bool IgnoreFunctions { get; set; }
 		#endregion
 
 		#region Creation
@@ -65,6 +67,7 @@ namespace TypeScripter
 			};
 			this.Reader = new DefaultTypeReader();
 			this.Writer = new TsFormatter();
+            this.IgnoreFunctions = false;
 		}
 		#endregion
 
@@ -195,18 +198,57 @@ namespace TypeScripter
 		{
 			// see if we have already processed the type
 			TsType tsType;
-			if (this.TypeLookup.TryGetValue(type, out tsType))
-				return tsType;
 
-			// should this assembly be considered?
-			if (this.AssemblyFilter != null && !this.AssemblyFilter(type.Assembly))
+            var isNullable = false;
+            var isArray = false;
+
+            if (type
+             .GetInterfaces()
+             .Any(t => t.IsGenericType
+                    && t.GetGenericTypeDefinition() == typeof(IEnumerable<>)))
+            {
+                if (type != typeof(string))
+                {
+                    isArray = true;
+
+                    type = type.GetGenericArguments()[0];
+                }
+            }
+
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
+            {
+                isNullable = true;
+                type = type.GetGenericArguments()[0];
+            }
+
+            if (this.TypeLookup.TryGetValue(type, out tsType))
+            {
+
+                tsType.IsNullable = isNullable;
+
+                if (!isArray)
+                {
+                    return tsType;
+                }
+                else
+                {
+                    var array = new TsArray(tsType, 1);
+
+                    return array;
+                }
+            }
+
+            // should this assembly be considered?
+            if (this.AssemblyFilter != null && !this.AssemblyFilter(type.Assembly))
 				return TsPrimitive.Any;
 
 			// should this assembly be considered?
 			if (this.TypeFilter != null && !this.TypeFilter(type))
 				return TsPrimitive.Any;
 
-			if (type.IsGenericParameter)
+
+
+            if (type.IsGenericParameter)
 				return new TsGenericType(new TsName(type.Name));
 			else if (type.IsGenericType && !type.IsGenericTypeDefinition)
 			{
@@ -217,12 +259,16 @@ namespace TypeScripter
 					var tsArgType = this.Resolve(argument);
 					tsGenericType.TypeArguments.Add(tsArgType);
                 }
+                tsGenericType.IsNullable = isNullable;
 				return tsGenericType;
 			}
 			else if (type.IsArray && type.HasElementType)
 			{
 				var elementType = this.Resolve(type.GetElementType());
-				return new TsArray(elementType, type.GetArrayRank());
+               
+                var array = new TsArray(elementType, type.GetArrayRank());
+                array.IsNullable = isNullable;
+                return array;
 			}
 			else if (type.IsEnum)
 				tsType = GenerateEnum(type);
@@ -233,8 +279,10 @@ namespace TypeScripter
 			else
 				tsType = TsPrimitive.Any;
 
-			// add the lookup
-			if (!this.TypeLookup.ContainsKey(type))
+            tsType.IsNullable = isNullable;
+     
+            // add the lookup
+            if (!this.TypeLookup.ContainsKey(type))
 				this.TypeLookup.Add(type, tsType);
 			return tsType;
 		}
@@ -282,33 +330,47 @@ namespace TypeScripter
 					tsInterface.BaseInterfaces.Add(baseType);
 			}
 
-			// process properties
-			foreach (var property in this.Reader.GetProperties(type))
-				tsInterface.Properties.Add(new TsProperty(GetName(property), Resolve(property.PropertyType)));
+            // process properties
+            foreach (var property in this.Reader.GetProperties(type))
+            {
+                tsInterface.Properties.Add(new TsProperty(GetName(property), Resolve(property.PropertyType)));
+            }
 
-			// process methods
-			foreach (var method in this.Reader.GetMethods(type))
-			{
-				var returnType = Resolve(method.ReturnType);
-				var parameters = this.Reader.GetParameters(method);
-				var tsFunction = new TsFunction(GetName(method));
-				tsFunction.ReturnType = returnType;
-				if (method.IsGenericMethod)
-				{
-					foreach (var genericArgument in method.GetGenericArguments())
-					{
-						var tsTypeParameter = new TsTypeParameter(new TsName(genericArgument.Name));
-						tsFunction.TypeParameters.Add(tsTypeParameter);
-					}
-				}
-				
-				foreach (var param in parameters.Select(x => new TsParameter(GetName(x), Resolve(x.ParameterType))))
-					tsFunction.Parameters.Add(param);
-				tsInterface.Functions.Add(tsFunction);
-			}
+            if (!IgnoreFunctions)
+            {
+                // process methods
+                foreach (var method in this.Reader.GetMethods(type))
+                {
+                    var returnType = Resolve(method.ReturnType);
+                    var parameters = this.Reader.GetParameters(method);
+                    var tsFunction = new TsFunction(GetName(method));
+                    tsFunction.ReturnType = returnType;
+                    if (method.IsGenericMethod)
+                    {
+                        foreach (var genericArgument in method.GetGenericArguments())
+                        {
+                            var tsTypeParameter = new TsTypeParameter(new TsName(genericArgument.Name));
+                            tsFunction.TypeParameters.Add(tsTypeParameter);
+                        }
+                    }
+
+                    foreach (var param in parameters.Select(x => new TsParameter(GetName(x), Resolve(x.ParameterType), IsOptionalParameter(x))))
+                    {
+                        tsFunction.Parameters.Add(param);
+
+                    }
+
+                    tsInterface.Functions.Add(tsFunction);
+                }
+            }
 
 			return tsInterface;
 		}
+
+        private bool IsOptionalParameter(ParameterInfo Info)
+        {
+            return Info.DefaultValue != null;
+        }
 
 		private TsEnum GenerateEnum(Type type)
 		{
@@ -377,7 +439,7 @@ namespace TypeScripter
 			var includeRef = string.Format("/// <reference path=\"include.ts\" />{0}", Environment.NewLine);
 			foreach (var module in this.Modules())
 			{
-				var fileName = module.Name.FullName + ".d.ts";
+				var fileName = module.Name.FullName + ".ts";
 				var path = System.IO.Path.Combine(directory, fileName);
 				var output = this.Writer.Format(module);
 

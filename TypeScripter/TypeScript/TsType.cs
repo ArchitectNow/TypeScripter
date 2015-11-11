@@ -19,13 +19,18 @@ namespace TypeScripter.TypeScript
 		protected TsType(TsName name)
 			: base(name)
 		{
+            IsNullable = false;
 		}
-		#endregion
+        #endregion
 
-		#region Method
-		public override string ToString()
+        public bool IsNullable { get; set; }
+
+        #region Method
+        public override string ToString()
 		{
-			return this.Name.FullName;
+            var _name = this.Name.FullName;
+
+            return _name;
 		}
 		#endregion
 	}
